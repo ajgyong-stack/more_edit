@@ -311,7 +311,7 @@ const ROWS = ['ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ', 'ㅁㄴㅇㄹㅎㅗㅓㅏㅣ', '
 const SHIFT_MAP = {'ㅂ':'ㅃ','ㅈ':'ㅉ','ㄷ':'ㄸ','ㄱ':'ㄲ','ㅅ':'ㅆ','ㅐ':'ㅒ','ㅔ':'ㅖ'};
 const UNSHIFT = Object.fromEntries(Object.entries(SHIFT_MAP).map(([a, b]) => [b, a]));
 const keyEls = {};
-let shiftEl, spaceEl, numEl, kbOn = false;
+let shiftEl, spaceEl, numEl, delEl, kbOn = false;
 
 (function buildKb(){
   const kb = $('kb');
@@ -321,7 +321,7 @@ let shiftEl, spaceEl, numEl, kbOn = false;
   const delSvg = "<svg width='28' height='20' viewBox='0 0 26 20' fill='none' stroke='#fff' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'><path d='M8 2h14a2 2 0 012 2v12a2 2 0 01-2 2H8L1 10z'/><path d='M12 7l6 6M18 7l-6 6'/></svg>";
   const r1 = mk('kr', '');
   [...ROWS[0]].forEach(c => r1.appendChild(key(c)));
-  r1.appendChild(mk('k fn', delSvg, '1.5'));
+  delEl = mk('k fn', delSvg, '1.5'); r1.appendChild(delEl);
   const r2 = mk('kr', '');
   r2.appendChild(mk('k sp', '', '0.6'));
   [...ROWS[1]].forEach(c => r2.appendChild(key(c)));
@@ -410,12 +410,34 @@ async function typeText(text, id){
   return id === runId;
 }
 
+/* 입력창에 쳤던 글자를 ⌫ 키로 한 글자씩(자모 단위) 지우는 연출. 말풍선은 만들지 않음 */
+async function eraseText(text, id, hold){
+  await sleep(hold); if(id !== runId) return false;
+  const seq = typeSteps(text).map(s => s.text).slice(0, -1).reverse();
+  seq.push('');
+  delEl.classList.add('hit');
+  for(let i = 0; i < seq.length; i++){
+    if(id !== runId){ delEl.classList.remove('hit'); return false; }
+    setField(seq[i]);
+    await sleep(i < 4 ? 170 : Math.max(22, 65 - i * 0.7));   // 처음엔 천천히, 꾹 누르면 점점 빠르게
+  }
+  delEl.classList.remove('hit');
+  await sleep(800);
+  return id === runId;
+}
+
+/* ✏️ 대화 내용 (erase:true → 다 치고 나서 보내지 않고 지움 / hold: 다 친 뒤 멈춰 있는 시간 ms) */
+const SCRIPT2 = [
+  { date: '<b>오늘</b> 오후 9:14' },
+  { from: 'me', text: '언니가 어제 내 첫키스 강탈해간 거 기억나요?', wait: 1200, erase: true, hold: 1800 },
+];
+
 async function play(){
   const id = ++runId;
   chat.innerHTML = ''; lastRow = null; receiptEl = null; resetKb();
   if(selRef){ selRef.p.textContent = ''; selRef.t.textContent = ''; }
   await sleep(500);
-  for(const m of SCRIPT){
+  for(const m of SCRIPT2){
     if(id !== runId) return;
     if(m.date){ addNote('date', m.date); await sleep(m.wait ?? 400); continue; }
     if(m.system){ addNote('system', m.system); await sleep(m.wait ?? 400); continue; }
@@ -437,6 +459,7 @@ async function play(){
       if(CONFIG.keyboard){
         if(!kbOn){ setKb(true); await sleep(520); if(id !== runId) return; }
         if(!(await typeText(m.text, id))) return;
+        if(m.erase){ if(!(await eraseText(m.text, id, m.hold ?? 1200))) return; continue; }
         await sleep(300); if(id !== runId) return;
         sendEl.classList.add('press'); await sleep(130);
         sendEl.classList.remove('press');
