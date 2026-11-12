@@ -48,9 +48,11 @@
   .namepill{margin-top:-6px;background:rgba(50,50,54,.9);border-radius:16px;padding:3px 12px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:4px;border:1px solid rgba(255,255,255,.08)}
   .namepill small{color:#999;font-size:11px}
 
-  .chat{position:absolute;inset:0;overflow-y:auto;padding:116px 30px 100px;display:flex;flex-direction:column;scrollbar-width:none;transition:padding-bottom .38s cubic-bezier(.2,.8,.2,1)}
+  .chat{position:absolute;left:0;right:0;top:0;bottom:72px;overflow-y:auto;overflow-anchor:none;padding:116px 30px 0;display:flex;flex-direction:column;scrollbar-width:none;transition:bottom .38s cubic-bezier(.2,.8,.2,1)}
+  .chat>*{flex-shrink:0}
+  .chat::after{content:'';flex:none;height:18px}
   .chat::-webkit-scrollbar{display:none}
-  .kb-on .chat{padding-bottom:calc(100px + var(--kbh))}
+  .kb-on .chat{bottom:calc(var(--kbh) + 56px)}
   .date{align-self:center;text-align:center;color:#8e8e93;font-size:13px;margin:14px 0 8px;line-height:1.35}
   .date b{font-weight:600}
   .row{display:flex;margin-top:3px;animation:pop .22s ease-out}
@@ -464,6 +466,16 @@ $('sendBtn').addEventListener('click', () => submit(false));
 
 // 프로필 클릭 → 처음부터 다시 재생
 $('contact').addEventListener('click', play);
+
+// 최신 메시지가 항상 보이도록: 내용이 바뀌거나 키보드 애니메이션이 끝날 때마다 맨 아래로 이동
+const toBottom = () => { chat.scrollTop = chat.scrollHeight; };
+new MutationObserver(() => {
+  toBottom(); requestAnimationFrame(toBottom);
+  setTimeout(toBottom, 120); setTimeout(toBottom, 450);
+}).observe(chat, { childList: true, subtree: true, characterData: true });
+chat.addEventListener('transitionend', toBottom);
+if(window.ResizeObserver) new ResizeObserver(toBottom).observe(chat);
+window.addEventListener('resize', toBottom);
 
 if(CONFIG.autoplay) play();
 </script>
